@@ -231,5 +231,325 @@ export function migrate() {
     CREATE INDEX IF NOT EXISTS idx_agent_attributions_agent
       ON agent_attributions(agent_id);
 
+
+    CREATE TABLE IF NOT EXISTS agent_performance (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      transaction_id TEXT,
+      score REAL NOT NULL,
+      multiplier REAL NOT NULL,
+      tier TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (agent_id) REFERENCES agents(id),
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_performance_agent
+      ON agent_performance(agent_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_performance_transaction
+      ON agent_performance(transaction_id);
+
+
+    CREATE TABLE IF NOT EXISTS agent_ledger (
+      id TEXT PRIMARY KEY,
+      transaction_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+
+      earned_amount REAL NOT NULL
+        CHECK(earned_amount >= 0),
+
+      final_payout REAL NOT NULL DEFAULT 0
+        CHECK(final_payout >= 0),
+
+      performance_retention REAL NOT NULL DEFAULT 0
+        CHECK(performance_retention >= 0),
+
+      carry_forward REAL NOT NULL DEFAULT 0
+        CHECK(carry_forward >= 0),
+
+      currency TEXT NOT NULL DEFAULT 'USD',
+
+      status TEXT NOT NULL DEFAULT 'PENDING',
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (transaction_id)
+        REFERENCES transactions(id),
+
+      FOREIGN KEY (agent_id)
+        REFERENCES agents(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_ledger_transaction
+      ON agent_ledger(transaction_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_ledger_agent
+      ON agent_ledger(agent_id);
+
+
+    CREATE TABLE IF NOT EXISTS agent_milestones (
+      id TEXT PRIMARY KEY,
+      transaction_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+
+      milestone TEXT NOT NULL,
+
+      percentage REAL NOT NULL
+        CHECK(percentage >= 0 AND percentage <= 1),
+
+      amount REAL NOT NULL
+        CHECK(amount >= 0),
+
+      currency TEXT NOT NULL DEFAULT 'USD',
+
+      status TEXT NOT NULL DEFAULT 'pending',
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (transaction_id)
+        REFERENCES transactions(id),
+
+      FOREIGN KEY (agent_id)
+        REFERENCES agents(id),
+
+      UNIQUE(
+        transaction_id,
+        agent_id,
+        milestone
+      )
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_milestones_transaction
+      ON agent_milestones(transaction_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_milestones_agent
+      ON agent_milestones(agent_id);
+
+
+    CREATE TABLE IF NOT EXISTS agent_payouts (
+      id TEXT PRIMARY KEY,
+      transaction_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      ledger_id TEXT NOT NULL,
+
+      milestone TEXT NOT NULL,
+
+      amount REAL NOT NULL
+        CHECK(amount >= 0),
+
+      currency TEXT NOT NULL DEFAULT 'USD',
+
+      status TEXT NOT NULL DEFAULT 'pending',
+
+      provider TEXT,
+      provider_reference TEXT,
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      paid_at TEXT,
+
+      FOREIGN KEY (transaction_id)
+        REFERENCES transactions(id),
+
+      FOREIGN KEY (agent_id)
+        REFERENCES agents(id),
+
+      FOREIGN KEY (ledger_id)
+        REFERENCES agent_ledger(id),
+
+      UNIQUE(
+        transaction_id,
+        agent_id,
+        milestone
+      )
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_payouts_transaction
+      ON agent_payouts(transaction_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_payouts_agent
+      ON agent_payouts(agent_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_payouts_ledger
+      ON agent_payouts(ledger_id);
+
+
+    CREATE TABLE IF NOT EXISTS agent_opportunities (
+      id TEXT PRIMARY KEY,
+
+      agent_id TEXT NOT NULL,
+
+      source_type TEXT NOT NULL,
+      source_url TEXT,
+
+      title TEXT NOT NULL,
+      description TEXT,
+
+      category TEXT,
+
+      counterparty_name TEXT,
+      counterparty_type TEXT,
+
+      contact_name TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+
+      external_reference TEXT,
+
+      direction TEXT NOT NULL
+        CHECK(direction IN ('BUY','SELL','BROKER','SERVICE')),
+
+      transaction_model TEXT
+        CHECK(transaction_model IN (
+          'COMMISSION',
+          'BROKER',
+          'BUY_AND_RESELL',
+          'SERVICE',
+          'EXECUTION_FEE'
+        )),
+
+      estimated_value REAL
+        CHECK(estimated_value IS NULL OR estimated_value >= 0),
+
+      currency TEXT NOT NULL DEFAULT 'USD',
+
+      confidence REAL NOT NULL DEFAULT 0
+        CHECK(confidence >= 0 AND confidence <= 1),
+
+      status TEXT NOT NULL DEFAULT 'discovered'
+        CHECK(status IN (
+          'discovered',
+          'verifying',
+          'verified',
+          'contacted',
+          'negotiating',
+          'qualified',
+          'converted',
+          'lost',
+          'rejected'
+        )),
+
+      rejection_reason TEXT,
+
+      discovered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      verified_at TEXT,
+      converted_at TEXT,
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (agent_id)
+        REFERENCES agents(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_opportunities_agent
+      ON agent_opportunities(agent_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_opportunities_status
+      ON agent_opportunities(status);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_opportunities_category
+      ON agent_opportunities(category);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_opportunities_source
+      ON agent_opportunities(source_type);
+
+
+    CREATE TABLE IF NOT EXISTS agent_verifications (
+      id TEXT PRIMARY KEY,
+
+      opportunity_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+
+      verification_type TEXT NOT NULL,
+
+      subject TEXT NOT NULL,
+
+      source_type TEXT,
+      source_url TEXT,
+
+      claim TEXT NOT NULL,
+      evidence TEXT,
+
+      result TEXT NOT NULL
+        CHECK(result IN (
+          'pending',
+          'verified',
+          'failed',
+          'inconclusive'
+        )),
+
+      confidence REAL NOT NULL DEFAULT 0
+        CHECK(confidence >= 0 AND confidence <= 1),
+
+      verified_at TEXT,
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (opportunity_id)
+        REFERENCES agent_opportunities(id),
+
+      FOREIGN KEY (agent_id)
+        REFERENCES agents(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_verifications_opportunity
+      ON agent_verifications(opportunity_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_verifications_agent
+      ON agent_verifications(agent_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_verifications_result
+      ON agent_verifications(result);
+
+
+    CREATE TABLE IF NOT EXISTS agent_followups (
+      id TEXT PRIMARY KEY,
+
+      opportunity_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+
+      channel TEXT NOT NULL,
+
+      contact TEXT,
+
+      action TEXT NOT NULL,
+
+      message TEXT,
+
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK(status IN (
+          'pending',
+          'sent',
+          'replied',
+          'no_response',
+          'failed',
+          'cancelled'
+        )),
+
+      scheduled_at TEXT,
+      executed_at TEXT,
+
+      response TEXT,
+
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (opportunity_id)
+        REFERENCES agent_opportunities(id),
+
+      FOREIGN KEY (agent_id)
+        REFERENCES agents(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_followups_opportunity
+      ON agent_followups(opportunity_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_followups_agent
+      ON agent_followups(agent_id);
+
+    CREATE INDEX IF NOT EXISTS idx_agent_followups_status
+      ON agent_followups(status);
+
   `);
 }

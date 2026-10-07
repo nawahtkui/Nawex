@@ -3,6 +3,7 @@ import { db } from "../db/database.js";
 import { id, json } from "../utils.js";
 import { runRevenueTests } from "../agents/revenueTestAgent.js";
 import { runCommercialTransactionTests } from "../agents/commercialTransactionTestAgent.js";
+import { runAgentEconomicsTests } from "../agents/agentEconomicsTestAgent.js";
 
 const router = Router();
 
@@ -138,6 +139,41 @@ router.post("/test-commercial", (req, res) => {
 
 });
 
+
+
+
+
+/*
+  AGENT ECONOMICS TEST
+
+  Tests:
+  - Value Pool
+  - Attribution
+  - Multi Agent Revenue Sharing
+*/
+
+router.post("/test-economics", (req, res) => {
+
+  try {
+
+    const result =
+      runAgentEconomicsTests();
+
+    res.status(
+      result.summary.overall === "PASS"
+        ? 200
+        : 422
+    ).json(result);
+
+  } catch(error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+
+});
 
 
 export default router;

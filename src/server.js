@@ -15,6 +15,9 @@ import offers from "./routes/offers.js";
 import orders from "./routes/orders.js";
 import marketing from "./routes/marketing.js";
 import agents from "./routes/agents.js";
+import transactions from "./routes/transactions.js";
+import transactionLifecycle from "./routes/transactionLifecycle.js";
+import broker from "./routes/broker.js";
 
 migrate();
 
@@ -53,6 +56,9 @@ app.use("/api/offers", offers);
 app.use("/api/orders", orders);
 app.use("/api/marketing", marketing);
 app.use("/api/agents", agents);
+app.use("/api/transactions", transactions);
+app.use("/api/transaction-lifecycle", transactionLifecycle);
+app.use("/api/broker", broker);
 
 app.use((err, req, res, next) => {
 console.error(err);

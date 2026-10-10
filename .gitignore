@@ -5,3 +5,14 @@ node_modules/
 *.db-wal
 logs/
 .DS_Store
+.safety-backups/
+data/
+.git-audit-temp.txt
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite-*
+.env.*
+!.env.example
